@@ -58,7 +58,7 @@ varying vec2 v_uv;
 uniform sampler2D u_tex;
 uniform vec2 u_res;
 uniform float u_smooth, u_bright, u_contrast, u_sat, u_warm, u_tint, u_fade, u_grain, u_vign, u_mono, u_glow, u_time;
-uniform float u_face, u_eye, u_slim;
+uniform float u_face, u_eye, u_slim, u_gain;
 uniform vec2 u_eyeL, u_eyeR, u_cheekL, u_cheekR, u_faceC;
 uniform float u_eyeRad, u_slimRad;
 uniform float u_chin, u_nose, u_makeup;
@@ -97,25 +97,35 @@ void main(){
     p = pull(p, u_noseR, normalize(u_noseC - u_noseR), u_noseRad, u_nose);
   }
   vec2 uv = p / u_res;
-  vec3 c = texture2D(u_tex, uv).rgb;
+  vec3 c = pow(texture2D(u_tex, uv).rgb, vec3(1.0 / u_gain));
+  float night = clamp((u_gain - 1.0) / 0.8, 0.0, 1.0);
 
-  // edge-preserving blur for skin
+  // edge-preserving blur for skin, with fine texture added back so skin doesn't look plastic
   float m = skin(c);
-  float a = clamp(u_smooth * 1.4 * m + u_glow * 0.3, 0.0, 1.0);
+  float a = clamp(u_smooth * 1.4 * m + u_glow * 0.3 + night * 0.45, 0.0, 1.0);
   if (a > 0.01) {
     vec2 px = (u_res.y / 720.0) * (2.0 + u_smooth * 2.5) / u_res;
-    vec3 sum = c; float wsum = 1.0;
+    vec3 sum = c; float wsum = 1.0; vec3 near = c;
     for (int i = 0; i < 12; i++) {
       float ang = float(i) * 0.5236;
       float rad = (i < 6) ? 1.5 : 3.2;
       vec2 off = vec2(cos(ang), sin(ang)) * px * rad * (mod(float(i), 2.0) + 1.0);
-      vec3 s = texture2D(u_tex, uv + off).rgb;
+      vec3 s = pow(texture2D(u_tex, uv + off).rgb, vec3(1.0 / u_gain));
+      if (i < 6) near += s;
       vec3 d = s - c;
       float w = exp(-dot(d, d) * 40.0);
       sum += s * w; wsum += w;
     }
-    c = mix(c, sum / wsum, a);
+    near /= 7.0;
+    vec3 detail = c - near;
+    vec3 smoothC = sum / wsum + detail * (0.5 - 0.35 * u_smooth);
+    c = mix(c, smoothC, a);
   }
+
+  // even out skin tone toward a soft, fair warm tone
+  float L0 = dot(c, vec3(0.299, 0.587, 0.114));
+  vec3 fair = vec3(1.0, 0.87, 0.81) * (L0 + 0.05);
+  c = mix(c, fair, m * u_smooth * 0.22);
 
   if (u_face > 0.5 && u_makeup > 0.01) {
     // under-eye brighten
@@ -174,7 +184,7 @@ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
 const U = {};
 ["u_mirror","u_res","u_smooth","u_bright","u_contrast","u_sat","u_warm","u_tint","u_fade","u_grain","u_vign","u_mono",
- "u_glow","u_time","u_face","u_eye","u_slim","u_eyeL","u_eyeR","u_cheekL","u_cheekR","u_faceC","u_eyeRad","u_slimRad",
+ "u_glow","u_time","u_gain","u_face","u_eye","u_slim","u_eyeL","u_eyeR","u_cheekL","u_cheekR","u_faceC","u_eyeRad","u_slimRad",
  "u_chin","u_nose","u_makeup","u_chinP","u_noseL","u_noseR","u_noseC","u_lipC","u_lipR","u_blushL","u_blushR",
  "u_underL","u_underR","u_chinRad","u_noseRad","u_blushRad","u_underRad"]
   .forEach(n => U[n] = gl.getUniformLocation(prog, n));
@@ -314,6 +324,7 @@ function render(now) {
   gl.uniform1f(U.u_mono, pv("mono"));
   gl.uniform1f(U.u_glow, pv("glow"));
   gl.uniform1f(U.u_time, (now % 10000) / 1000);
+  gl.uniform1f(U.u_gain, showOriginal ? 1 : gain);
 
   const f = face && !showOriginal;
   gl.uniform1f(U.u_face, f ? 1 : 0);
@@ -350,8 +361,25 @@ function render(now) {
   return true;
 }
 
+/* auto light: measure scene brightness a few times a second */
+const meter = document.createElement("canvas"); meter.width = meter.height = 24;
+const mctx = meter.getContext("2d", { willReadFrequently: true });
+let gain = 1, frame = 0;
+function measure() {
+  try {
+    mctx.drawImage(video, 0, 0, 24, 24);
+    const d = mctx.getImageData(0, 0, 24, 24).data;
+    let y = 0;
+    for (let i = 0; i < d.length; i += 4) y += .299 * d[i] + .587 * d[i + 1] + .114 * d[i + 2];
+    y = Math.max(0.02, y / (d.length / 4) / 255);
+    const target = y < 0.4 ? Math.min(1.9, Math.log(y) / Math.log(0.42)) : 1;
+    gain += (Math.max(1, target) - gain) * 0.3;
+  } catch {}
+}
+
 function loop(now) {
   if (!running) return;
+  if (frame++ % 10 === 0) measure();
   detect(now);
   render(now);
   requestAnimationFrame(loop);
