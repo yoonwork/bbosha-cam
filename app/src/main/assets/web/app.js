@@ -15,17 +15,25 @@ const TABS = [
   { id: "bright", name: "화사" },
   { id: "eye",    name: "눈" },
   { id: "slim",   name: "갸름" },
+  { id: "chin",   name: "V라인" },
+  { id: "nose",   name: "코" },
+  { id: "makeup", name: "메이크업" },
   { id: "amount", name: "필터" },
 ];
-const DEFAULTS = { smooth: 55, bright: 35, eye: 30, slim: 30, amount: 80 };
+const LEVELS = {
+  natural: { name: "자연", v: { smooth: 35, bright: 25, eye: 15, slim: 15, chin: 10, nose: 10, makeup: 20 } },
+  bbosha:  { name: "뽀샤", v: { smooth: 65, bright: 45, eye: 40, slim: 45, chin: 35, nose: 35, makeup: 50 } },
+  max:     { name: "최강", v: { smooth: 95, bright: 70, eye: 80, slim: 85, chin: 70, nose: 70, makeup: 85 } },
+};
+const DEFAULTS = { ...LEVELS.bbosha.v, amount: 80 };
 const state = load();
 let tab = "smooth";
 
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem("bbosha") || "{}");
-    return { preset: s.preset || "milk", v: { ...DEFAULTS, ...(s.v || {}) } };
-  } catch { return { preset: "milk", v: { ...DEFAULTS } }; }
+    return { preset: s.preset || "milk", level: s.level || "bbosha", v: { ...DEFAULTS, ...(s.v || {}) } };
+  } catch { return { preset: "milk", level: "bbosha", v: { ...DEFAULTS } }; }
 }
 function save() { try { localStorage.setItem("bbosha", JSON.stringify(state)); } catch {} }
 
@@ -54,6 +62,11 @@ uniform float u_smooth, u_bright, u_contrast, u_sat, u_warm, u_tint, u_fade, u_g
 uniform float u_face, u_eye, u_slim;
 uniform vec2 u_eyeL, u_eyeR, u_cheekL, u_cheekR, u_faceC;
 uniform float u_eyeRad, u_slimRad;
+uniform float u_chin, u_nose, u_makeup;
+uniform vec2 u_chinP, u_noseL, u_noseR, u_noseC, u_lipC, u_lipR, u_blushL, u_blushR, u_underL, u_underR;
+uniform float u_chinRad, u_noseRad, u_blushRad, u_underRad;
+float ellipseMask(vec2 p, vec2 c, vec2 r){ vec2 d = (p - c) / r; return 1.0 - smoothstep(0.55, 1.0, dot(d, d)); }
+float softCircle(vec2 p, vec2 c, float r){ float t = length(p - c) / r; return 1.0 - smoothstep(0.0, 1.0, t); }
 
 vec2 bulge(vec2 p, vec2 c, float r, float s){
   vec2 d = p - c; float l = length(d);
@@ -80,6 +93,9 @@ void main(){
     p = bulge(p, u_eyeR, u_eyeRad, u_eye);
     p = pull(p, u_cheekL, normalize(u_faceC - u_cheekL), u_slimRad, u_slim);
     p = pull(p, u_cheekR, normalize(u_faceC - u_cheekR), u_slimRad, u_slim);
+    p = pull(p, u_chinP, normalize(u_faceC - u_chinP), u_chinRad, u_chin);
+    p = pull(p, u_noseL, normalize(u_noseC - u_noseL), u_noseRad, u_nose);
+    p = pull(p, u_noseR, normalize(u_noseC - u_noseR), u_noseRad, u_nose);
   }
   vec2 uv = p / u_res;
   vec3 c = texture2D(u_tex, uv).rgb;
@@ -88,7 +104,7 @@ void main(){
   float m = skin(c);
   float a = clamp(u_smooth * 1.4 * m + u_glow * 0.3, 0.0, 1.0);
   if (a > 0.01) {
-    vec2 px = (u_res.y / 720.0) * 2.2 / u_res;
+    vec2 px = (u_res.y / 720.0) * (2.0 + u_smooth * 2.5) / u_res;
     vec3 sum = c; float wsum = 1.0;
     for (int i = 0; i < 12; i++) {
       float ang = float(i) * 0.5236;
@@ -100,6 +116,21 @@ void main(){
       sum += s * w; wsum += w;
     }
     c = mix(c, sum / wsum, a);
+  }
+
+  if (u_face > 0.5 && u_makeup > 0.01) {
+    // under-eye brighten
+    float ue = max(softCircle(p, u_underL, u_underRad), softCircle(p, u_underR, u_underRad));
+    c += ue * u_makeup * 0.12 * (vec3(1.0) - c);
+    // blush
+    float bl = max(softCircle(p, u_blushL, u_blushRad), softCircle(p, u_blushR, u_blushRad));
+    c = mix(c, c * vec3(1.0, 0.82, 0.86) + vec3(0.06, 0.0, 0.02), bl * u_makeup * 0.55);
+    // lips: skip teeth (bright, low saturation)
+    float lm = ellipseMask(p, u_lipC, u_lipR);
+    float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b));
+    float lipish = smoothstep(0.08, 0.2, mx - mn) * (1.0 - smoothstep(0.75, 0.95, mn));
+    vec3 lip = vec3(0.86, 0.28, 0.38) * (0.55 + 0.6 * dot(c, vec3(0.333)));
+    c = mix(c, lip, lm * lipish * u_makeup * 0.6);
   }
 
   vec3 one = vec3(1.0);
@@ -144,7 +175,9 @@ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
 const U = {};
 ["u_mirror","u_res","u_smooth","u_bright","u_contrast","u_sat","u_warm","u_tint","u_fade","u_grain","u_vign","u_mono",
- "u_glow","u_time","u_face","u_eye","u_slim","u_eyeL","u_eyeR","u_cheekL","u_cheekR","u_faceC","u_eyeRad","u_slimRad"]
+ "u_glow","u_time","u_face","u_eye","u_slim","u_eyeL","u_eyeR","u_cheekL","u_cheekR","u_faceC","u_eyeRad","u_slimRad",
+ "u_chin","u_nose","u_makeup","u_chinP","u_noseL","u_noseR","u_noseC","u_lipC","u_lipR","u_blushL","u_blushR",
+ "u_underL","u_underR","u_chinRad","u_noseRad","u_blushRad","u_underRad"]
   .forEach(n => U[n] = gl.getUniformLocation(prog, n));
 
 /* ---------------- camera ---------------- */
@@ -209,7 +242,8 @@ async function initFace() {
   }
 }
 
-const IDX = { eyeL: 468, eyeR: 473, eL1: 33, eL2: 133, eR1: 362, eR2: 263, jawL: 132, jawR: 361, edgeL: 234, edgeR: 454, nose: 4 };
+const IDX = { eyeL: 468, eyeR: 473, eL1: 33, eL2: 133, eR1: 362, eR2: 263, jawL: 132, jawR: 361, edgeL: 234, edgeR: 454, nose: 4,
+  chin: 152, noseL: 129, noseR: 358, lipL: 61, lipR: 291, lipT: 0, lipB: 17, blushL: 50, blushR: 280, underL: 145, underR: 374 };
 
 function detect(now) {
   if (!landmarker || video.readyState < 2) return;
@@ -221,15 +255,24 @@ function detect(now) {
   if (!lm) { face = null; return; }
   const w = video.videoWidth, h = video.videoHeight;
   const P = i => [lm[i].x * w, lm[i].y * h];
+  lastEyeW = (dist(P(IDX.eL1), P(IDX.eL2)) + dist(P(IDX.eR1), P(IDX.eR2))) / 2;
   const next = {
     eyeL: P(IDX.eyeL), eyeR: P(IDX.eyeR),
     jawL: P(IDX.jawL), jawR: P(IDX.jawR), nose: P(IDX.nose),
+    chin: P(IDX.chin), noseL: P(IDX.noseL), noseR: P(IDX.noseR),
+    lipC: mid(P(IDX.lipT), P(IDX.lipB)),
+    lipR: [dist(P(IDX.lipL), P(IDX.lipR)) * 0.55, dist(P(IDX.lipT), P(IDX.lipB)) * 0.6],
+    blushL: P(IDX.blushL), blushR: P(IDX.blushR),
+    underL: below(P(IDX.underL)), underR: below(P(IDX.underR)),
     eyeW: (dist(P(IDX.eL1), P(IDX.eL2)) + dist(P(IDX.eR1), P(IDX.eR2))) / 2,
     faceW: dist(P(IDX.edgeL), P(IDX.edgeR)),
   };
   face = face ? smoothFace(face, next, 0.5) : next;
 }
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+let lastEyeW = 20;
+const below = a => [a[0], a[1] + lastEyeW * 0.35];
 function smoothFace(a, b, k) {
   const o = {};
   for (const key in b) o[key] = Array.isArray(b[key])
@@ -271,6 +314,7 @@ function render(now) {
 
   const f = face && !showOriginal;
   gl.uniform1f(U.u_face, f ? 1 : 0);
+  if (!f) gl.uniform1f(U.u_makeup, 0);
   if (f) {
     gl.uniform1f(U.u_eye, state.v.eye / 100 * 0.3);
     gl.uniform1f(U.u_slim, state.v.slim / 100 * 0.14);
@@ -281,6 +325,23 @@ function render(now) {
     gl.uniform2f(U.u_faceC, ...face.nose);
     gl.uniform1f(U.u_eyeRad, face.eyeW * 1.1);
     gl.uniform1f(U.u_slimRad, face.faceW * 0.42);
+    gl.uniform1f(U.u_chin, state.v.chin / 100 * 0.12);
+    gl.uniform1f(U.u_nose, state.v.nose / 100 * 0.18);
+    gl.uniform1f(U.u_makeup, state.v.makeup / 100);
+    gl.uniform2f(U.u_chinP, ...face.chin);
+    gl.uniform2f(U.u_noseL, ...face.noseL);
+    gl.uniform2f(U.u_noseR, ...face.noseR);
+    gl.uniform2f(U.u_noseC, ...face.nose);
+    gl.uniform2f(U.u_lipC, ...face.lipC);
+    gl.uniform2f(U.u_lipR, ...face.lipR);
+    gl.uniform2f(U.u_blushL, ...face.blushL);
+    gl.uniform2f(U.u_blushR, ...face.blushR);
+    gl.uniform2f(U.u_underL, ...face.underL);
+    gl.uniform2f(U.u_underR, ...face.underR);
+    gl.uniform1f(U.u_chinRad, face.faceW * 0.35);
+    gl.uniform1f(U.u_noseRad, face.eyeW * 0.9);
+    gl.uniform1f(U.u_blushRad, face.faceW * 0.16);
+    gl.uniform1f(U.u_underRad, face.eyeW * 0.55);
   }
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   return true;
@@ -354,9 +415,25 @@ TABS.forEach(t => {
   tabsEl.append(b);
 });
 slider.addEventListener("input", () => {
+  if (tab !== "amount") { state.level = null; paintLevels(); }
   state.v[tab] = +slider.value; out.textContent = slider.value; save();
 });
 selectTab("smooth");
+
+const levelsEl = document.getElementById("levels");
+function paintLevels() {
+  levelsEl.querySelectorAll("button").forEach(b => b.classList.toggle("sel", b.dataset.id === state.level));
+}
+Object.entries(LEVELS).forEach(([id, L]) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.dataset.id = id; b.textContent = L.name;
+  b.onclick = () => {
+    state.level = id; Object.assign(state.v, L.v); save();
+    paintLevels(); selectTab(tab); toast(L.name + " 모드");
+  };
+  levelsEl.append(b);
+});
+paintLevels();
 
 /* ---------------- start ---------------- */
 startCamera();
