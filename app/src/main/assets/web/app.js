@@ -1,4 +1,3 @@
-import { FilesetResolver, FaceLandmarker } from "./mp/vision_bundle.mjs";
 
 /* ---------------- settings ---------------- */
 const PRESETS = [
@@ -221,25 +220,29 @@ document.getElementById("retry").onclick = startCamera;
 let landmarker = null, face = null, lastTs = -1;
 const statusEl = document.getElementById("status");
 
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+
 async function initFace() {
+  statusEl.textContent = "얼굴 기능 불러오는 중";
+  let why = "";
   try {
+    const { FilesetResolver, FaceLandmarker } = await import("./mp/vision_bundle.js");
     const files = await FilesetResolver.forVisionTasks(new URL("./mp/", location.href).href);
-    const make = (path, delegate) => FaceLandmarker.createFromOptions(files, {
+    const make = (path, delegate) => withTimeout(FaceLandmarker.createFromOptions(files, {
       baseOptions: { modelAssetPath: path, delegate },
       runningMode: "VIDEO", numFaces: 1,
-    });
+    }), 20000);
     const local = new URL("./face_landmarker.task", location.href).href;
     const remote = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
-    for (const path of [local, remote]) {
-      for (const d of ["GPU", "CPU"]) {
-        try { landmarker = await make(path, d); break; } catch {}
+    outer: for (const path of [local, remote]) {
+      for (const d of ["CPU", "GPU"]) {
+        try { landmarker = await make(path, d); break outer; } catch (e) { why = String(e && e.message || e).slice(0, 60); }
       }
-      if (landmarker) break;
     }
-    statusEl.textContent = landmarker ? "" : "얼굴 보정 없이 촬영 중";
-  } catch {
-    statusEl.textContent = "얼굴 보정 없이 촬영 중";
+  } catch (e) {
+    why = String(e && e.message || e).slice(0, 60);
   }
+  statusEl.textContent = landmarker ? "" : "얼굴 기능 오류: " + why;
 }
 
 const IDX = { eyeL: 468, eyeR: 473, eL1: 33, eL2: 133, eR1: 362, eR2: 263, jawL: 132, jawR: 361, edgeL: 234, edgeR: 454, nose: 4,
@@ -252,7 +255,8 @@ function detect(now) {
   let res;
   try { res = landmarker.detectForVideo(video, ts); } catch { return; }
   const lm = res && res.faceLandmarks && res.faceLandmarks[0];
-  if (!lm) { face = null; return; }
+  if (!lm) { face = null; statusEl.textContent = "얼굴을 화면 안에 맞춰주세요"; return; }
+  if (statusEl.textContent) statusEl.textContent = "";
   const w = video.videoWidth, h = video.videoHeight;
   const P = i => [lm[i].x * w, lm[i].y * h];
   lastEyeW = (dist(P(IDX.eL1), P(IDX.eL2)) + dist(P(IDX.eR1), P(IDX.eR2))) / 2;
