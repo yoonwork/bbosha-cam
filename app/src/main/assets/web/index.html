@@ -65,6 +65,13 @@ video{display:none}
 .toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);
   background:rgba(43,34,48,.85);color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
+.result{position:fixed;inset:0;z-index:20;background:var(--soft);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
+.result img{max-width:100%;max-height:68vh;border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,.15);-webkit-touch-callout:default;user-select:auto;-webkit-user-select:auto}
+.result-bar{display:flex;gap:10px;width:100%;max-width:360px}
+.result-bar button{flex:1;font:17px var(--display);border-radius:999px;padding:13px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.result-bar .primary{background:var(--pink);border-color:var(--pink);color:#fff}
+.result-hint{margin:0;font-size:12px;color:var(--mute)}
 </style>
 </head>
 <body>
@@ -114,6 +121,14 @@ video{display:none}
       </button>
     </div>
   </div>
+</div>
+<div class="result" id="result" hidden>
+  <img id="resultImg" alt="찍은 사진">
+  <div class="result-bar">
+    <button type="button" id="resultClose">다시 찍기</button>
+    <button type="button" id="resultSave" class="primary">사진 저장</button>
+  </div>
+  <p class="result-hint">저장이 안 되면 사진을 길게 눌러 저장하세요</p>
 </div>
 <div class="toast" id="toast"></div>
 <script type="module" src="app.js"></script>
