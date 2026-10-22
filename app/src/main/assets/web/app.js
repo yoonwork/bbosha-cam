@@ -223,7 +223,7 @@ const statusEl = document.getElementById("status");
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
 
 async function initFace() {
-  statusEl.textContent = "얼굴 기능 불러오는 중";
+  
   let why = "";
   try {
     const { FilesetResolver, FaceLandmarker } = await import("./mp/vision_bundle.js");
@@ -242,7 +242,7 @@ async function initFace() {
   } catch (e) {
     why = String(e && e.message || e).slice(0, 60);
   }
-  statusEl.textContent = landmarker ? "" : "얼굴 기능 오류: " + why;
+  console.log("face:", landmarker ? "ok" : why);
 }
 
 const IDX = { eyeL: 468, eyeR: 473, eL1: 33, eL2: 133, eR1: 362, eR2: 263, jawL: 132, jawR: 361, edgeL: 234, edgeR: 454, nose: 4,
@@ -255,8 +255,7 @@ function detect(now) {
   let res;
   try { res = landmarker.detectForVideo(video, ts); } catch { return; }
   const lm = res && res.faceLandmarks && res.faceLandmarks[0];
-  if (!lm) { face = null; statusEl.textContent = "얼굴을 화면 안에 맞춰주세요"; return; }
-  if (statusEl.textContent) statusEl.textContent = "";
+  if (!lm) { face = null; return; }
   const w = video.videoWidth, h = video.videoHeight;
   const P = i => [lm[i].x * w, lm[i].y * h];
   lastEyeW = (dist(P(IDX.eL1), P(IDX.eL2)) + dist(P(IDX.eR1), P(IDX.eR2))) / 2;
