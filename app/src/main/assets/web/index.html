@@ -6,92 +6,112 @@
 <title>뽀샤캠</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
 <style>
+/* Bright beauty-cam layout: camera fills the screen, white rounded sheet at the bottom with a pink shutter. */
 :root{
-  --bg:#17121a; --panel:#221a26; --line:#3a2e3f; --fg:#f6eef2; --mute:#a893a3;
-  --accent:#ff8fb1; --accent-ink:#2a1020;
+  --sheet:#ffffff; --ink:#2b2230; --mute:#9a8f98; --line:#f1e6ec; --soft:#fff1f6;
+  --pink:#ff6f9c; --pink2:#ffb3c9; --glass:rgba(255,255,255,.22);
   --display:"Jua",sans-serif; --body:"Gowun Dodum",sans-serif;
-  color-scheme:dark;
+  color-scheme:light;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--fg);font-family:var(--body);overflow:hidden;user-select:none;-webkit-user-select:none}
-.app{height:100%;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px}
-.brand{font-family:var(--display);font-size:22px}
-.brand span{color:var(--accent)}
-.status{font-size:12px;color:var(--mute)}
-.stage{position:relative;flex:1;min-height:0;margin:0 12px;border-radius:22px;overflow:hidden;background:#000}
+body{background:#000;color:var(--ink);font-family:var(--body);overflow:hidden;user-select:none;-webkit-user-select:none}
+.app{position:relative;height:100%}
+.stage{position:absolute;inset:0;background:#000}
 #gl{width:100%;height:100%;object-fit:cover;display:block}
 video{display:none}
 .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
-.flash.on{opacity:.85;transition:none}
-.hold{position:absolute;right:10px;top:10px;background:rgba(23,18,26,.7);color:var(--fg);border:1px solid var(--line);
-  border-radius:999px;padding:7px 12px;font:13px var(--body)}
-.hold.on{background:var(--accent);color:var(--accent-ink)}
-.levels{position:absolute;left:10px;top:10px;display:flex;background:rgba(23,18,26,.7);border:1px solid var(--line);border-radius:999px;padding:3px}
-.levels button{background:none;border:0;color:var(--mute);font:14px var(--display);padding:6px 12px;border-radius:999px}
-.levels button.sel{background:var(--accent);color:var(--accent-ink)}
-.tabs{overflow-x:auto;scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
-.tab{flex:0 0 auto !important;padding:6px 10px !important}
+.flash.on{opacity:.9;transition:none}
+.top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;justify-content:space-between;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 12px;background:linear-gradient(rgba(0,0,0,.28),transparent)}
+.brand{font-family:var(--display);font-size:22px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.25)}
+.brand span{color:var(--pink2)}
+.top-actions{display:flex;gap:8px}
+.ico{width:40px;height:40px;border-radius:50%;border:0;background:var(--glass);color:#fff;display:flex;align-items:center;justify-content:center;padding:0;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.ico svg{width:22px;height:22px}
+.ico.on{background:#fff;color:var(--pink)}
+.status{display:none}
 .msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
-  text-align:center;padding:24px;background:var(--bg);font-size:15px;line-height:1.6}
-.msg button{font:17px var(--display);background:var(--accent);color:var(--accent-ink);border:0;border-radius:14px;padding:10px 20px}
-.sheet{padding:12px 0 calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
-.strip{display:flex;gap:8px;overflow-x:auto;padding:0 16px;scrollbar-width:none}
+  text-align:center;padding:24px;background:var(--soft);font-size:15px;line-height:1.6;color:var(--ink)}
+.msg button{font:17px var(--display);background:var(--pink);color:#fff;border:0;border-radius:999px;padding:10px 22px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--sheet);border-radius:26px 26px 0 0;
+  padding:14px 0 calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;
+  box-shadow:0 -6px 24px rgba(0,0,0,.12)}
+.panel{min-height:64px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.levels{display:flex;justify-content:center;gap:10px;padding:0 16px}
+.levels button{border:1px solid var(--line);background:#fff;color:var(--mute);font:16px var(--display);padding:9px 20px;border-radius:999px}
+.levels button.sel{background:var(--pink);border-color:var(--pink);color:#fff;box-shadow:0 4px 12px rgba(255,111,156,.35)}
+.strip{display:flex;gap:14px;overflow-x:auto;padding:0 16px;scrollbar-width:none}
 .strip::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);
-  color:var(--mute);border-radius:999px;padding:7px 13px 7px 8px;font:13px var(--body)}
-.chip i{width:18px;height:18px;border-radius:50%;display:block}
-.chip.sel{color:var(--fg);border-color:var(--accent)}
-.tabs{display:flex;gap:6px;padding:0 16px}
-.tab{flex:1;background:none;border:0;color:var(--mute);font:14px var(--body);padding:6px 0;border-bottom:2px solid transparent}
-.tab.sel{color:var(--fg);border-color:var(--accent)}
-.slider{display:flex;align-items:center;gap:12px;padding:0 20px}
-.slider input{flex:1;accent-color:var(--accent)}
-.slider output{width:30px;text-align:right;color:var(--mute);font-variant-numeric:tabular-nums;font-size:13px}
-.bar{display:flex;align-items:center;justify-content:space-between;padding:4px 36px 0}
-.round{width:50px;height:50px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--fg);
-  display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;padding:0}
-.round.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.round img{width:100%;height:100%;object-fit:cover}
-.shutter{width:76px;height:76px;border-radius:50%;border:4px solid var(--fg);background:var(--accent);padding:0}
-.shutter:active{transform:scale(.94)}
-.toast{position:fixed;left:50%;bottom:calc(210px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
-  background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+.chip{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:none;color:var(--mute);font:12px var(--body);padding:0}
+.chip i{width:52px;height:52px;border-radius:16px;display:block;border:2px solid transparent}
+.chip.sel{color:var(--pink)}
+.chip.sel i{border-color:var(--pink)}
+.tabs{display:flex;gap:4px;padding:0 12px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;background:none;border:0;color:var(--mute);font:14px var(--body);padding:6px 11px;border-radius:999px}
+.tab.sel{color:var(--pink);background:var(--soft)}
+.slider{display:flex;align-items:center;gap:12px;padding:0 22px}
+.slider input{flex:1;accent-color:var(--pink)}
+.slider output{width:30px;text-align:right;color:var(--pink);font-variant-numeric:tabular-nums;font-size:13px}
+.bar{display:flex;align-items:center;justify-content:space-around;padding:0 20px}
+.side{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;color:var(--ink);font:12px var(--body);padding:0;width:64px}
+.side svg{width:28px;height:28px}
+.side.on{color:var(--pink)}
+.shutter{width:78px;height:78px;border-radius:50%;padding:0;border:5px solid var(--pink2);
+  background:radial-gradient(circle at 50% 40%,#ff9dbb,var(--pink));box-shadow:0 0 0 4px #fff inset}
+.shutter:active{transform:scale(.93)}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);
+  background:rgba(43,34,48,.85);color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
 </style>
 </head>
 <body>
 <div class="app">
-  <header>
-    <div class="brand">뽀샤<span>캠</span></div>
-    <div class="status" id="status"></div>
-  </header>
-
   <div class="stage">
     <canvas id="gl"></canvas>
     <video id="video" playsinline muted></video>
     <div class="flash" id="flash"></div>
-    <div class="levels" id="levels" role="group" aria-label="보정 세기"></div>
-    <button class="hold" id="hold" type="button">원본 보기</button>
     <div class="msg" id="msg" hidden>
       <div id="msgText">카메라를 켜는 중이에요</div>
       <button id="retry" type="button">다시 시도</button>
     </div>
   </div>
 
+  <div class="top">
+    <div class="brand">뽀샤<span>캠</span></div>
+    <div class="status" id="status"></div>
+    <div class="top-actions">
+      <button class="ico" id="hold" type="button" aria-label="누르는 동안 원본 보기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v16"/><rect x="4" y="5" width="16" height="14" rx="3"/></svg>
+      </button>
+      <button class="ico" id="flip" type="button" aria-label="카메라 전환">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9a8 8 0 0 1 14-3l2 2"/><path d="M20 4v4h-4"/><path d="M20 15a8 8 0 0 1-14 3l-2-2"/><path d="M4 20v-4h4"/></svg>
+      </button>
+    </div>
+  </div>
+
   <div class="sheet">
-    <div class="strip" id="filters"></div>
-    <div class="tabs" id="tabs" hidden></div>
-    <div class="slider" id="sliderRow" hidden>
-      <input id="slider" type="range" min="0" max="100" value="55" aria-label="세기">
-      <output id="sliderOut">55</output>
+    <div class="panel">
+      <div class="levels" id="levels" role="group" aria-label="보정 세기"></div>
+      <div class="strip" id="filters" hidden></div>
+      <div class="tabs" id="tabs" hidden></div>
+      <div class="slider" id="sliderRow" hidden>
+        <input id="slider" type="range" min="0" max="100" value="55" aria-label="세기">
+        <output id="sliderOut">55</output>
+      </div>
     </div>
     <div class="bar">
-      <button class="round" id="flip" type="button" aria-label="카메라 전환">⟲</button>
+      <button class="side" id="filterBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="10" r="5"/><circle cx="15" cy="10" r="5"/><circle cx="12" cy="15" r="5"/></svg>
+        필터
+      </button>
       <button class="shutter" id="shot" type="button" aria-label="찍기"></button>
-      <button class="round" id="detail" type="button" aria-label="세부 조정">✦</button>
+      <button class="side" id="detail" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z"/></svg>
+        뷰티
+      </button>
     </div>
   </div>
 </div>

@@ -358,13 +358,17 @@ function loop(now) {
 }
 
 /* ---------------- capture ---------------- */
-const detailBtn = document.getElementById("detail");
-detailBtn.onclick = () => {
-  const open = document.getElementById("tabs").hidden;
-  document.getElementById("tabs").hidden = !open;
-  document.getElementById("sliderRow").hidden = !open;
-  detailBtn.classList.toggle("on", open);
-};
+const panels = { levels: ["levels"], filter: ["filters"], beauty: ["tabs", "sliderRow"] };
+let panel = "levels";
+function showPanel(name) {
+  panel = panel === name ? "levels" : name;
+  Object.values(panels).flat().forEach(id => document.getElementById(id).hidden = true);
+  panels[panel].forEach(id => document.getElementById(id).hidden = false);
+  document.getElementById("filterBtn").classList.toggle("on", panel === "filter");
+  document.getElementById("detail").classList.toggle("on", panel === "beauty");
+}
+document.getElementById("filterBtn").onclick = () => showPanel("filter");
+document.getElementById("detail").onclick = () => showPanel("beauty");
 document.getElementById("shot").onclick = () => {
   if (!running) return;
   const was = showOriginal; showOriginal = false;
