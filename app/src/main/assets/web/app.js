@@ -358,7 +358,13 @@ function loop(now) {
 }
 
 /* ---------------- capture ---------------- */
-const lastBtn = document.getElementById("last");
+const detailBtn = document.getElementById("detail");
+detailBtn.onclick = () => {
+  const open = document.getElementById("tabs").hidden;
+  document.getElementById("tabs").hidden = !open;
+  document.getElementById("sliderRow").hidden = !open;
+  detailBtn.classList.toggle("on", open);
+};
 document.getElementById("shot").onclick = () => {
   if (!running) return;
   const was = showOriginal; showOriginal = false;
@@ -367,7 +373,6 @@ document.getElementById("shot").onclick = () => {
   showOriginal = was;
   const fl = document.getElementById("flash");
   fl.classList.add("on"); setTimeout(() => fl.classList.remove("on"), 60);
-  lastBtn.innerHTML = `<img alt="" src="${data}">`;
   let ok = false;
   try { ok = window.Android && window.Android.savePhoto(data) === "ok"; } catch {}
   toast(ok ? "사진첩에 저장했어요" : "저장하지 못했어요. 다시 찍어 주세요.");
