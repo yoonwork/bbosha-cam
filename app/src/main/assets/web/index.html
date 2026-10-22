@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>뽀샤캠</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<style>
+:root{
+  --bg:#17121a; --panel:#221a26; --line:#3a2e3f; --fg:#f6eef2; --mute:#a893a3;
+  --accent:#ff8fb1; --accent-ink:#2a1020;
+  --display:"Jua",sans-serif; --body:"Gowun Dodum",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);overflow:hidden;user-select:none;-webkit-user-select:none}
+.app{height:100%;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px}
+.brand{font-family:var(--display);font-size:22px}
+.brand span{color:var(--accent)}
+.status{font-size:12px;color:var(--mute)}
+.stage{position:relative;flex:1;min-height:0;margin:0 12px;border-radius:22px;overflow:hidden;background:#000}
+#gl{width:100%;height:100%;object-fit:cover;display:block}
+video{display:none}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
+.flash.on{opacity:.85;transition:none}
+.hold{position:absolute;right:10px;top:10px;background:rgba(23,18,26,.7);color:var(--fg);border:1px solid var(--line);
+  border-radius:999px;padding:7px 12px;font:13px var(--body)}
+.hold.on{background:var(--accent);color:var(--accent-ink)}
+.msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  text-align:center;padding:24px;background:var(--bg);font-size:15px;line-height:1.6}
+.msg button{font:17px var(--display);background:var(--accent);color:var(--accent-ink);border:0;border-radius:14px;padding:10px 20px}
+.sheet{padding:12px 0 calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
+.strip{display:flex;gap:8px;overflow-x:auto;padding:0 16px;scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);
+  color:var(--mute);border-radius:999px;padding:7px 13px 7px 8px;font:13px var(--body)}
+.chip i{width:18px;height:18px;border-radius:50%;display:block}
+.chip.sel{color:var(--fg);border-color:var(--accent)}
+.tabs{display:flex;gap:6px;padding:0 16px}
+.tab{flex:1;background:none;border:0;color:var(--mute);font:14px var(--body);padding:6px 0;border-bottom:2px solid transparent}
+.tab.sel{color:var(--fg);border-color:var(--accent)}
+.slider{display:flex;align-items:center;gap:12px;padding:0 20px}
+.slider input{flex:1;accent-color:var(--accent)}
+.slider output{width:30px;text-align:right;color:var(--mute);font-variant-numeric:tabular-nums;font-size:13px}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:4px 36px 0}
+.round{width:50px;height:50px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--fg);
+  display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;padding:0}
+.round img{width:100%;height:100%;object-fit:cover}
+.shutter{width:76px;height:76px;border-radius:50%;border:4px solid var(--fg);background:var(--accent);padding:0}
+.shutter:active{transform:scale(.94)}
+.toast{position:fixed;left:50%;bottom:calc(210px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">뽀샤<span>캠</span></div>
+    <div class="status" id="status">얼굴 인식 준비 중</div>
+  </header>
+
+  <div class="stage">
+    <canvas id="gl"></canvas>
+    <video id="video" playsinline muted></video>
+    <div class="flash" id="flash"></div>
+    <button class="hold" id="hold" type="button">원본 보기</button>
+    <div class="msg" id="msg" hidden>
+      <div id="msgText">카메라를 켜는 중이에요</div>
+      <button id="retry" type="button">다시 시도</button>
+    </div>
+  </div>
+
+  <div class="sheet">
+    <div class="strip" id="filters"></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="slider">
+      <input id="slider" type="range" min="0" max="100" value="55" aria-label="세기">
+      <output id="sliderOut">55</output>
+    </div>
+    <div class="bar">
+      <button class="round" id="flip" type="button" aria-label="카메라 전환">⟲</button>
+      <button class="shutter" id="shot" type="button" aria-label="찍기"></button>
+      <button class="round" id="last" type="button" aria-label="마지막 사진"></button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
